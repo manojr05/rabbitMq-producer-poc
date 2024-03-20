@@ -23,8 +23,8 @@ public class ProducerController {
     private final FileProducerService fileProducerService;
 
     @PostMapping("/publish/string")
-    public ResponseEntity<String> sendMessage(@RequestParam String message){
-        return ResponseEntity.ok(stringProducerService.sendStringMessage(message));
+    public ResponseEntity<String> sendMessage(@RequestParam String message, @RequestParam String applicationName){
+        return ResponseEntity.ok(stringProducerService.sendStringMessage(message, applicationName));
     }
 
     @PostMapping("/publish/json")

@@ -2,6 +2,8 @@ package com.rabbitmq.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -19,8 +21,11 @@ public class StringProducerService {
 
     private final RabbitTemplate rabbitTemplate;
 
-    public String sendStringMessage(String message){
-        rabbitTemplate.convertAndSend(exchange, stringRoutingKey, message);
+    public String sendStringMessage(String message, String applicationName){
+        rabbitTemplate.convertAndSend(exchange, stringRoutingKey, message, m -> {
+            m.getMessageProperties().getHeaders().put(applicationName, applicationName);
+            return m;
+        });
         log.info("Message sent: {}", message);
         return message;
     }
