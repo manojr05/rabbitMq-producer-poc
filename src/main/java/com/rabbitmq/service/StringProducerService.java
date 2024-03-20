@@ -22,12 +22,8 @@ public class StringProducerService {
     private final RabbitTemplate rabbitTemplate;
 
     public String sendStringMessage(String message, String applicationName){
-        rabbitTemplate.convertAndSend(exchange, stringRoutingKey, message, m -> {
-            m.getMessageProperties().getHeaders().put(applicationName, applicationName);
-            return m;
-        });
+        rabbitTemplate.convertAndSend(exchange, stringRoutingKey, message);
         log.info("Message sent: {}", message);
         return message;
     }
-
 }
