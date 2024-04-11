@@ -19,9 +19,9 @@ public class ProducerController {
     private final StringProducerService stringProducerService;
 
     @PostMapping("/register/consumer")
-    public ResponseEntity<String> registerConsumer(){
+    public ResponseEntity<String> registerConsumer(@RequestParam String storeCode){
         log.info("Received request to register with the MQ");
-        String macID = rabbitAdminService.registerConsumer();
+        String macID = rabbitAdminService.registerConsumer(storeCode);
         return ResponseEntity.ok(macID);
     }
 

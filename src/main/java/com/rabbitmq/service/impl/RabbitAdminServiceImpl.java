@@ -1,10 +1,12 @@
 package com.rabbitmq.service.impl;
 
 
+import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.service.RabbitAdminService;
 import com.rabbitmq.service.mq.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.AmqpIOException;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,36 +25,40 @@ public class RabbitAdminServiceImpl implements RabbitAdminService {
     private final DynamicRabbitListenerConfigurer dynamicRabbitListenerConfigurer;
 
     @Override
-    public String registerConsumer() {
-        createQueuesInRabbitMQ();
-        dynamicRabbitListenerConfigurer.addRabbitListener(appName+"-file",
+    public String registerConsumer(String storeCode) {
+        createQueuesInRabbitMQ(storeCode);
+        dynamicRabbitListenerConfigurer.addRabbitListener(appName+".file",
                                                             new MyMessageHandler(),
-                                                "handleMessage");
+                                                "fileConsumer");
         log.info("Listener added successfully for queue: "+appName+"-file");
         return appName;
     }
 
-    private void createQueuesInRabbitMQ(){
-        Exchange exchange = new DirectExchange(appName);
-        rabbitAdmin.declareExchange(exchange);
-        log.info("Exchange added successfully: "+appName);
+    private void createQueuesInRabbitMQ(String storeCode){
 
-        Queue fileQueue = new Queue(appName+"-file", true, false, false);
-        rabbitAdmin.declareQueue(fileQueue);
-        Binding fileBinding = BindingBuilder.bind(fileQueue).to(exchange).with(appName+".file").noargs();
-        rabbitAdmin.declareBinding(fileBinding);
-        log.info("Queue added successfully: "+appName+"-file");
+        try{
+            Exchange exchange = new TopicExchange(storeCode);
 
-        Queue statisticsQueue = new Queue(appName+"-statistics", true, false, false);
-        rabbitAdmin.declareQueue(statisticsQueue);
-        Binding statisticsBinding = BindingBuilder.bind(statisticsQueue).to(exchange).with(appName+".statistics").noargs();
-        rabbitAdmin.declareBinding(statisticsBinding);
-        log.info("Queue added successfully: "+appName+"-statistics");
+            declareQueueAndBinding(exchange, appName + ".file", "#.file");
+            declareQueueAndBinding(exchange, appName + ".statistics", appName + ".statistics");
+            declareQueueAndBinding(exchange, appName + ".acknowledgement", appName + ".acknowledgement");
+        }catch (AmqpIOException e){
+            log.info("Exchange doesn't exist, creating new exchange");
+            Exchange exchange = new TopicExchange(storeCode);
+            rabbitAdmin.declareExchange(exchange);
 
-        Queue acknowledgementQueue = new Queue(appName+"-acknowledgement", true, false, false);
-        rabbitAdmin.declareQueue(acknowledgementQueue);
-        Binding acknowledgementBinding = BindingBuilder.bind(acknowledgementQueue).to(exchange).with(appName+".acknowledgement").noargs();
-        rabbitAdmin.declareBinding(acknowledgementBinding);
-        log.info("Queue added successfully: "+appName+"-acknowledgement");
+            declareQueueAndBinding(exchange, appName + ".file", "#.file");
+            declareQueueAndBinding(exchange, appName + ".statistics", appName + ".statistics");
+            declareQueueAndBinding(exchange, appName + ".acknowledgement", appName + ".acknowledgement");
+
+        }
+    }
+
+    private void declareQueueAndBinding(Exchange exchange, String queueName, String routingKey) throws ShutdownSignalException{
+        Queue queue = new Queue(queueName, true, false, false);
+        rabbitAdmin.declareQueue(queue);
+        Binding binding = BindingBuilder.bind(queue).to(exchange).with(routingKey).noargs();
+        rabbitAdmin.declareBinding(binding);
+        log.info("Queue added successfully: " + queueName);
     }
 }
